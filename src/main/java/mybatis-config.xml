@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>  
+<!DOCTYPE configuration PUBLIC "-//mybatis.org//DTD Config 3.0//EN" "http://mybatis.org/dtd/mybatis-3-config.dtd">  
+<configuration>  
+
+    <typeAliases>
+	  <typeAlias alias="EHentai" type="entity.EHentai"/>
+	</typeAliases>
+	
+    <environments default="development">  
+        <environment id="development">  
+            <transactionManager type="JDBC" />  
+            <!-- 配置数据库连接信息 -->  
+            <dataSource type="POOLED">  
+                <property name="driver" value="com.mysql.jdbc.Driver" />  
+                <property name="url" value="jdbc:mysql://45.32.58.144:3306/kurumi?useUnicode=true&amp;characterEncoding=UTF-8&amp;" />  
+                <property name="username" value="root" />  
+                <property name="password" value="123" />  
+            </dataSource>  
+        </environment>  
+    </environments>  
+    
+    <mappers>  
+        <mapper resource="EHentaiMapper.xml" />  
+    </mappers>  
+</configuration>  
