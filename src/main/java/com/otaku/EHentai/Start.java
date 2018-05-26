@@ -6,6 +6,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.CommandLineRunner;
@@ -26,6 +27,9 @@ public class Start implements ApplicationRunner,CommandLineRunner{
 	
 	@Autowired
 	WriteThread writeThread;
+	
+	@Value("${localEnvironment}")
+	boolean localEnvironment;
 	
 	public static class Listener implements Observer{
 		@Override
@@ -49,13 +53,15 @@ public class Start implements ApplicationRunner,CommandLineRunner{
 
 	@Override
 	public void run(String... args) throws Exception {
-//		System.setProperty("http.proxySet", "true"); 
-//		System.setProperty("http.proxyHost", "127.0.0.1"); 
-//		System.setProperty("http.proxyPort", "1080");
-//		
-//		System.setProperty("https.proxySet", "true"); 
-//		System.setProperty("https.proxyHost", "127.0.0.1"); 
-//		System.setProperty("https.proxyPort", "1080");
+		if(localEnvironment){
+			System.setProperty("http.proxySet", "true"); 
+			System.setProperty("http.proxyHost", "127.0.0.1"); 
+			System.setProperty("http.proxyPort", "1080");
+			
+			System.setProperty("https.proxySet", "true"); 
+			System.setProperty("https.proxyHost", "127.0.0.1"); 
+			System.setProperty("https.proxyPort", "1080");
+		}
 		
 		ExecutorService executor_producer = Executors.newFixedThreadPool(1);
 		executor_producer.execute(producer);
