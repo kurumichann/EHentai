@@ -1,10 +1,8 @@
 package com.otaku.EHentai;
 
-import java.util.Observable;
-import java.util.Observer;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
+import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
@@ -12,35 +10,44 @@ import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.context.annotation.ComponentScan;
+
+import conf.Conf;
 
 @SpringBootApplication
+@ComponentScan
+@ComponentScan(basePackageClasses=Conf.class)
 public class Start implements ApplicationRunner,CommandLineRunner{
 	
 	@Autowired
-	ProducerThread producer;
+	ProducerThread producerThread;
 	
 	@Autowired
-	HandlerThread handler;
-	
-	@Autowired
-	HandlerThread handler2;
+	HandlerThread handlerThread;
 	
 	@Autowired
 	WriteThread writeThread;
 	
+	@Autowired
+	ThreadObserver threadObserver;
+	
+	@Autowired
+	ExecutorService executor;
+	
+	@Autowired
+	Logger log;
+	
 	@Value("${localEnvironment}")
 	boolean localEnvironment;
 	
-	public static class Listener implements Observer{
-		@Override
-		public void update(Observable o, Object arg) {
-	        System.out.print("线程"+o.getClass().getName()+"将被重启");
-			WriteThread wt = new WriteThread(9);
-			wt.addObserver(this);
-			new Thread(wt).start();
-			
-		}
-	}
+	@Value("${conf.producerThreadNumber}")
+	int producerThreadNumber;
+	
+	@Value("${conf.handlerThreadNumber}")
+	int handlerThreadNumber;
+	
+	@Value("${conf.writeThreadNumber}")
+	int writeThreadNumber;
 	
 	public static void main(String args[]){
 		SpringApplication.run(Start.class, args);
@@ -63,15 +70,19 @@ public class Start implements ApplicationRunner,CommandLineRunner{
 			System.setProperty("https.proxyPort", "1080");
 		}
 		
-		ExecutorService executor_producer = Executors.newFixedThreadPool(1);
-		executor_producer.execute(producer);
+		producerThread.addObserver(threadObserver);
+		handlerThread.addObserver(threadObserver);
+		writeThread.addObserver(threadObserver);
 		
-		ExecutorService executor_handler = Executors.newFixedThreadPool(3);
-		executor_handler.execute(handler);
-		executor_handler.execute(handler2);
-		
-		writeThread.addObserver(new Listener());
-		new Thread(writeThread).start();
-		
+		log.info("Link Start");
+		for(int i = 0 ; i < producerThreadNumber ; i++){
+			executor.execute(producerThread);
+		}
+		for(int i = 0 ; i < handlerThreadNumber ; i++){
+			executor.execute(handlerThread);
+		}
+		for(int i = 0 ; i < writeThreadNumber ; i++){
+			executor.execute(writeThread);
+		}
 	}
 }

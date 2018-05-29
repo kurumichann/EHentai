@@ -7,24 +7,27 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.LinkedList;
+import java.util.Observable;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.apache.logging.log4j.Logger;
 import org.jsoup.Connection;
 import org.jsoup.HttpStatusException;
 import org.jsoup.Jsoup;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
 
 import entity.EHentai;
-
-public class HandlerThread implements Runnable{
+@Component
+public class HandlerThread  extends Observable implements Runnable{
 
     @Value("${conf.cookies}")
 	String cookies;
-    
+   
 	String text;
 	String url;
 	String honName;
@@ -44,6 +47,16 @@ public class HandlerThread implements Runnable{
     String artist;
     String parody;
     String misc;
+    String lastUrl;
+    
+	@Autowired
+	public BlockingQueue<String> toBeHandledQueue;
+	
+	@Autowired
+	public BlockingQueue<EHentai> handledQueue;
+	
+	@Autowired
+	public Logger log;
     
 	private final int  THREADNAME;
 	private final Pattern TITLE_PATTERN = Pattern.compile("(?<=<h1 id=\"gn\">).{1,150}(?=</h1>    <h1 id=\"gj\">)");
@@ -65,11 +78,9 @@ public class HandlerThread implements Runnable{
 	private final Pattern LANGUAGE_PATTERN = Pattern.compile("(?<=<td class=\"gdt1\">Language:</td><td class=\"gdt2\">).{1,20}(?=&nbsp;)");
 	private static final int MAX_RETRY_CNT = 5;
 	private static Set<String> visitedSet = Collections.synchronizedSet(new HashSet<String>());
-	@Autowired
-	public BlockingQueue<String> toBeHandledQueue;
-	@Autowired
-	public BlockingQueue<EHentai> handledQueue;
+	
 	public SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+	@SuppressWarnings("serial")
 	public HashSet<String> CATEGORYSET = new HashSet<String>(){{
 			add("doujinshi");
 			add("manga");
@@ -82,13 +93,14 @@ public class HandlerThread implements Runnable{
 		    add("asian porn");
 		   	add("misc");}};
 	
-	public HandlerThread(int threadNo){
+	public HandlerThread(int threadNo,ThreadObserver threadObserver){
 		this.THREADNAME = threadNo;
+		this.addObserver(threadObserver);
 	}
 
 	public String get_response_html(String url) throws Exception{
 		 Connection connection  = Jsoup.connect(url).userAgent("Mozilla/5.0 (Windows NT 6.3; WOW64) AppleWebKit/537.36 ??+"
-					              + "??(KHTML, like Gecko) Chrome/47.0.2526.106 Safari/537.36").cookie("Cookie", cookies);
+					              + "??(KHTML, like Gecko) Chrome/47.0.2526.106 Safari/537.36").cookie("Cookie", cookies).header("Referer", lastUrl);
 		 String html= connection.get().html().replaceAll("\n", "").replaceAll("          ", "").replaceAll("         ", "");
 		 return html;
 	}
@@ -265,12 +277,16 @@ public class HandlerThread implements Runnable{
 	public void scan_url(String url, int retry_counts) {
 		
 		if(visitedSet.contains(url)){
-			System.out.println("==========重复==========");
+			log.info("==========重复==========");
 			return;
 		}
 		EHentai manga = new EHentai();
 		try {
+			if(lastUrl == null){
+				lastUrl = url;
+			}
 			text = get_response_html(url);
+			lastUrl = url;
 			honName = getTitle(text);
 			category = getCategory(text);
 			uploader = getUploader(text);
@@ -308,33 +324,33 @@ public class HandlerThread implements Runnable{
             manga.setLanguage(language);
             manga.setArtist(artist);
             manga.setCharacter(character);
-			System.out.println(manga);
-			System.out.println("toBeHandledQueue: "+toBeHandledQueue.size()+"/1000\n");
+			log.info("\n"+manga);
+			log.info("toBeHandledQueue: "+toBeHandledQueue.size()+"/1000\n");
 			handledQueue.offer(manga);
 			visitedSet.add(url);
 		}catch(HttpStatusException e){
 			if(e.toString().contains("Status=4")){
-				System.err.println("err took place in thread "+this.THREADNAME);
+				log.error("err took place in thread "+this.THREADNAME);
 				return;
 			}
 			if( retry_counts != 0){
 				scan_url(url, retry_counts-1);
 			}
 			visitedSet.add(url);
-			System.err.println(url+"这个地址有毒或者是cdn限制");
+			log.error(url+"这个地址有毒或者是cdn限制");
 			return;
 		}catch(IllegalArgumentException e){
-			System.err.println("err took place in thread "+this.THREADNAME);
+			log.error("err took place in thread "+this.THREADNAME);
 			e.printStackTrace();
 			visitedSet.add(url);
 			return;
 		}catch (SocketTimeoutException e){
-			System.out.println("read time out, reconnect...  url:  "+url);
+			log.info("read time out, reconnect...  url:  "+url);
 			if( retry_counts != 0){
 				scan_url(url, retry_counts-1);
 			}
 			visitedSet.add(url);
-			System.err.println("err took place in thread "+this.THREADNAME);
+			log.error("err took place in thread "+this.THREADNAME);
 			return;
 		}catch (Exception e) {
 			if( retry_counts != 0){
@@ -342,7 +358,7 @@ public class HandlerThread implements Runnable{
 			}
 			e.printStackTrace();
 			visitedSet.add(url);
-			System.err.println("err took place in thread "+this.THREADNAME);
+			log.error("err took place in thread "+this.THREADNAME);
 			return;
 		}
 	}
@@ -351,6 +367,10 @@ public class HandlerThread implements Runnable{
 	public void run() {
 		while(true){
 			try {
+				if(handledQueue.size() > 100){
+					log.info("数据库线程队列深度大于100");
+			        Thread.sleep(10000);
+				}
 				url = toBeHandledQueue.take();
 				Thread.sleep((long) (Math.random()*8000));
 				scan_url(url, MAX_RETRY_CNT);

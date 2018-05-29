@@ -1,32 +1,36 @@
 package com.otaku.EHentai;
 
 import java.io.IOException;
+import java.util.Observable;
 import java.util.Properties;
 import java.util.concurrent.BlockingQueue;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.apache.logging.log4j.Logger;
 import org.jsoup.Connection;
 import org.jsoup.Jsoup;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.ComponentScan;
 import org.springframework.stereotype.Component;
 
-import conf.Conf;
-
 @Component
-@ComponentScan(basePackageClasses=Conf.class)
-public class ProducerThread implements Runnable{
+public class ProducerThread  extends Observable implements Runnable{
 
 	@Value("${conf.url}")
 	String primaryUrl;
+	
 	@Value("${conf.startPage}")
 	int startPage;
+	
 	@Value("${conf.cookies}")
 	String cookies;
+	
 	@Autowired
 	public BlockingQueue<String> toBeHandledQueue;
+	
+	@Autowired
+	public Logger log;
 	
 	int threadNo;
 	final int MAX_RETRY_CNT = 10;
@@ -39,8 +43,9 @@ public class ProducerThread implements Runnable{
 	 * @param String url  协议+网站主域名+后缀 如 https://e-hentai.org/?page=
 	 * @param int    start 起始页
 	 */
-	public ProducerThread(int threadNo) {
+	public ProducerThread(int threadNo, ThreadObserver threadObserver) {
 		this.threadNo = threadNo;
+		this.addObserver(threadObserver);
 	}
 	
 	public String get_response_html(String url){
@@ -51,7 +56,7 @@ public class ProducerThread implements Runnable{
 			html = connection.get().html();
 		} catch (IOException e) {
 			if(retryCnt < MAX_RETRY_CNT){
-				System.out.println("retrying..... current cnt: "+retryCnt++);
+				log.info("retrying..... current cnt: "+retryCnt++);
 				return get_response_html(url);
 			}
 			e.printStackTrace();
@@ -66,9 +71,9 @@ public class ProducerThread implements Runnable{
 		while((text = get_response_html(primaryUrl+startPage++)) != null){
 			//currentPageProperty.setProperty("currentPage", String.valueOf(currentPage));
 			match = COMIC_PATTERN.matcher(text.replace("\n", "").replace("          ", ""));
-			System.out.println("第"+startPage+"页");
+			log.info("第"+startPage+"页");
 			while(match.find()){
-				while(toBeHandledQueue.size() > 200){
+				while(toBeHandledQueue.size() > 25){
 				    try {
 					    Thread.sleep(20000);
 				    }catch (InterruptedException e) {
@@ -77,7 +82,7 @@ public class ProducerThread implements Runnable{
 			    }
 
 				toBeHandledQueue.offer(match.group());
-				System.out.println("queue length: "+toBeHandledQueue.size()+"/20");
+				log.info("queue length: "+toBeHandledQueue.size()+"/20");
 			}
 			try {
 				Thread.sleep(20000);
@@ -85,7 +90,8 @@ public class ProducerThread implements Runnable{
 				e.printStackTrace();
 			}
 		}
-		System.err.println("居然翻完了");
+		log.error("居然翻完了");
 		
 	}
+	
 }

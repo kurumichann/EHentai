@@ -1,13 +1,18 @@
 package conf;
 
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import com.otaku.EHentai.HandlerThread;
 import com.otaku.EHentai.ProducerThread;
+import com.otaku.EHentai.ThreadObserver;
 import com.otaku.EHentai.WriteThread;
 
 import entity.EHentai;
@@ -22,7 +27,8 @@ public class Conf {
 	int handlerNo = 0;
 	int writeNo = 0;
 	
-	@Bean BlockingQueue<String> toBeHandledQueue(){
+	@Bean 
+	BlockingQueue<String> toBeHandledQueue(){
 		if(toBeHandledQueue!=null){
 			return toBeHandledQueue;
 		}else{
@@ -37,7 +43,8 @@ public class Conf {
 		}
 	}
 	
-	@Bean BlockingQueue<EHentai> handledQueue(){
+	@Bean 
+	BlockingQueue<EHentai> handledQueue(){
 		if(handledQueue!=null){
 			return handledQueue;
 		}else{
@@ -54,17 +61,33 @@ public class Conf {
 	
 	@Bean
 	public ProducerThread producerThread(){
-		return new ProducerThread(producerNo++);
+		return new ProducerThread(producerNo++, threadObserver());
 	}
 	
 	@Bean
 	public HandlerThread handlerThread(){
-		return new HandlerThread(handlerNo++);
+		return new HandlerThread(handlerNo++, threadObserver());
 	}
 	
 	@Bean
 	public WriteThread writeThread(){
-		return new WriteThread(writeNo);
+		return new WriteThread(writeNo++, threadObserver());
 	}
+	
+	@Bean
+	public ExecutorService executor(){
+		return Executors.newFixedThreadPool(10);
+	}
+	
+	@Bean
+	public Logger logger(){
+		return LogManager.getLogger(this.getClass());
+	}
+	
+	@Bean
+	public ThreadObserver threadObserver(){
+		return new ThreadObserver();
+	}
+	
 	
 }

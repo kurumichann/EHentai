@@ -15,8 +15,11 @@ doujinshi info collection
   提交springboot项目</br>
   2018.5.26</br>
   使用actuator做程序监控</br>
-  2018.5.27
-  修改了时间间隔策略，可以根据配置文件确定各线程的数量
+  2018.5.27</br>
+  修改了时间间隔策略，可以根据配置文件确定各线程的数量</br>
+  2018.5.29</br>
+  使用log4j2记录日志，同时输出到控制台和文件上，具体配置在/src/main/resource/log4j2.xml里</br>
+
 #how to start</br>
   构建</br>
       本项目是maven工程，所以只需要导入项目，eclipse的话项目右键-》maven-》update Project即可</br>
