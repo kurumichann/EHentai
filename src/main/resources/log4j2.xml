@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>  
+<configuration>  
+    <properties>  
+        <!-- 文件输出格式 -->  
+        <property name="PATTERN">%d{yyyy-MM-dd HH:mm:ss.SSS} |-%-5level [%thread] %c [%L] -| %msg%n</property>
+        <property name="LOG_HOME_DEV_MAC">/Users/zhongbingyi/Documents/workspace/EHentai</property>
+        <property name="LOG_HOME_PRODUCT"></property>
+        <property name="FILE_NAME">hentai</property>  
+    </properties>  
+  
+    <appenders>  
+        <Console name="CONSOLE" target="system_out">  
+            <PatternLayout pattern="${PATTERN}" />  
+        </Console>  
+        
+        <RollingRandomAccessFile name="RollingRandomAccessFile" fileName="${LOG_HOME_DEV_MAC}/${FILE_NAME}.log" filePattern="${LOG_HOME}/$${date:yyyy-MM}/${FILE_NAME}-%d{yyyy-MM-dd HH-mm}-%i.log">
+            <PatternLayout pattern="${PATTERN}"/>
+            <Policies>
+                <TimeBasedTriggeringPolicy interval="%d{yyyy-MM-dd HH}"/>
+                <SizeBasedTriggeringPolicy size="10 MB"/>
+            </Policies>
+            <DefaultRolloverStrategy max="20"/>
+        </RollingRandomAccessFile>
+    </appenders>  
+      
+    <loggers>  
+        <logger name="com.roncoo.education" level="debug" />  
+        <root level="info">  
+            <appenderref ref="CONSOLE" />  
+        </root>  
+    </loggers>  
+  
+</configuration>  
